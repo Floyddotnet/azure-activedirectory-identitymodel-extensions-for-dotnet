@@ -440,6 +440,17 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             }
         }
 
+        /// <summary>
+        /// Gets the original raw data of this instance when it was created.
+        /// </summary>
+        /// <remarks>
+        /// The original Base64UrlEncoded of the JWT.
+        /// </remarks>
+        internal ReadOnlyMemory<char> EncodedTokenMemory
+        {
+            get => _encodedTokenMemory;
+        }
+
         internal JsonClaimSet Header { get; set; }
 
         internal byte[] HeaderAsciiBytes { get; set; }
@@ -611,7 +622,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 try
                 {
-                    Header = CreateHeaderClaimSet(Base64UrlEncoder.Decode(headerSpan).AsSpan());
+                    Header = CreateHeaderClaimSet(Base64UrlEncoder.DecodeBytes(headerSpan).AsSpan());
                 }
                 catch (Exception ex)
                 {
@@ -625,7 +636,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 ReadOnlySpan<char> encryptedKeyBytes = encodedTokenSpan.Slice(Dot1 + 1, Dot2 - Dot1 - 1);
                 if (!encryptedKeyBytes.IsEmpty)
                 {
-                    EncryptedKeyBytes = Base64UrlEncoder.Decode(encryptedKeyBytes);
+                    EncryptedKeyBytes = Base64UrlEncoder.DecodeBytes(encryptedKeyBytes);
                     _encryptedKey = encryptedKeyBytes.ToString();
                 }
                 else
@@ -639,7 +650,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 try
                 {
-                    InitializationVectorBytes = Base64UrlEncoder.Decode(initializationVectorSpan);
+                    InitializationVectorBytes = Base64UrlEncoder.DecodeBytes(initializationVectorSpan);
                 }
                 catch (Exception ex)
                 {
@@ -652,7 +663,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 try
                 {
-                    AuthenticationTagBytes = Base64UrlEncoder.Decode(authTagSpan);
+                    AuthenticationTagBytes = Base64UrlEncoder.DecodeBytes(authTagSpan);
                 }
                 catch (Exception ex)
                 {
@@ -665,7 +676,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 try
                 {
-                    CipherTextBytes = Base64UrlEncoder.Decode(cipherTextSpan);
+                    CipherTextBytes = Base64UrlEncoder.DecodeBytes(cipherTextSpan);
                 }
                 catch (Exception ex)
                 {

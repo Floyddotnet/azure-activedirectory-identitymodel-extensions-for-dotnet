@@ -190,7 +190,7 @@ namespace Microsoft.IdentityModel.Tokens
         public static byte[] DecodeBytes(string str)
         {
             _ = str ?? throw LogHelper.LogExceptionMessage(new ArgumentNullException(nameof(str)));
-            return Decode(str.AsSpan());
+            return DecodeBytes(str.AsSpan());
         }
 
 #if NETCOREAPP
@@ -198,7 +198,7 @@ namespace Microsoft.IdentityModel.Tokens
 #endif
 
 #if NET9_0_OR_GREATER
-        internal static byte[] Decode(ReadOnlySpan<char> strSpan)
+        internal static byte[] DecodeBytes(ReadOnlySpan<char> strSpan)
         {
             int upperBound = Base64Url.GetMaxDecodedLength(strSpan.Length);
             byte[] rented = null;
@@ -220,7 +220,7 @@ namespace Microsoft.IdentityModel.Tokens
             }
         }
 #else
-        internal static byte[] Decode(ReadOnlySpan<char> strSpan)
+        internal static byte[] DecodeBytes(ReadOnlySpan<char> strSpan)
         {
             int mod = strSpan.Length % 4;
             if (mod == 1)
@@ -506,5 +506,17 @@ namespace Microsoft.IdentityModel.Tokens
         {
             return Encoding.UTF8.GetString(DecodeBytes(arg));
         }
+
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Decodes the specified base64url encoded string to UTF-8.
+        /// </summary>
+        /// <param name="arg">The base64url encoded string to decode.</param>
+        /// <returns>The UTF-8 decoded string.</returns>
+        public static string Decode(ReadOnlySpan<char> arg)
+        {
+            return Encoding.UTF8.GetString(DecodeBytes(arg));
+        }
+#endif
     }
 }

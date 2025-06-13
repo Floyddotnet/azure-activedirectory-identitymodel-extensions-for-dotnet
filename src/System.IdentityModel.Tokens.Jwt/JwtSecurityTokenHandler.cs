@@ -751,7 +751,7 @@ namespace System.IdentityModel.Tokens.Jwt
                 throw LogHelper.LogExceptionMessage(new SecurityTokenMalformedException(LogMessages.IDX12709));
 
             var jwtToken = new JwtSecurityToken();
-            jwtToken.Decode(token.Split('.'), token);
+            jwtToken.Decode(JwtTokenUtils.SplitToken(token), token);
             return jwtToken;
         }
 

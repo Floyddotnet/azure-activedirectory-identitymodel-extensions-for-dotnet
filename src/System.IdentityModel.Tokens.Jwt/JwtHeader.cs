@@ -35,11 +35,11 @@ namespace System.IdentityModel.Tokens.Jwt
         /// <summary>
         /// Initializes a new instance of the <see cref="JwtHeader"/> class. Default string comparer <see cref="StringComparer.Ordinal"/>.
         /// </summary>
-        internal JwtHeader(string json)
+        internal JwtHeader(byte[] json)
         {
             _ = json ?? throw LogHelper.LogArgumentNullException(nameof(json));
 
-            Utf8JsonReader reader = new(Encoding.UTF8.GetBytes(json));
+            Utf8JsonReader reader = new(json);
 
             if (!JsonPrimitives.IsReaderAtTokenType(ref reader, JsonTokenType.StartObject, true))
                 throw LogHelper.LogExceptionMessage(
@@ -435,8 +435,30 @@ namespace System.IdentityModel.Tokens.Jwt
         {
             _ = base64UrlEncodedJsonString ?? throw LogHelper.LogArgumentNullException(nameof(base64UrlEncodedJsonString));
 
-            return new JwtHeader(Base64UrlEncoder.Decode(base64UrlEncodedJsonString));
+            return new JwtHeader(Base64UrlEncoder.DecodeBytes(base64UrlEncodedJsonString));
         }
+
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Deserializes Base64UrlEncoded JSON into a <see cref="JwtHeader"/> instance.
+        /// </summary>
+        /// <param name="base64UrlEncodedJsonString">Base64url encoded JSON to deserialize.</param>
+        /// <returns>An instance of <see cref="JwtHeader"/>.</returns>
+        public static JwtHeader Base64UrlDeserialize(ReadOnlySpan<char> base64UrlEncodedJsonString)
+        {
+            return new JwtHeader(Base64UrlEncoder.DecodeBytes(base64UrlEncodedJsonString));
+        }
+
+        /// <summary>
+        /// Deserializes Base64UrlEncoded JSON into a <see cref="JwtHeader"/> instance.
+        /// </summary>
+        /// <param name="base64UrlEncodedJsonString">Base64url encoded JSON to deserialize.</param>
+        /// <returns>An instance of <see cref="JwtHeader"/>.</returns>
+        public static JwtHeader Base64UrlDeserialize(ReadOnlyMemory<char> base64UrlEncodedJsonString)
+        {
+            return Base64UrlDeserialize(base64UrlEncodedJsonString.Span);
+        }
+#endif
 
         /// <summary>
         /// Encodes this instance as Base64UrlEncoded JSON.

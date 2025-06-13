@@ -4,7 +4,9 @@
 using System.Collections.Generic;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Abstractions;
+#if !NET9_0_OR_GREATER
 using Microsoft.IdentityModel.JsonWebTokens;
+#endif
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 
@@ -28,6 +30,11 @@ namespace System.IdentityModel.Tokens.Jwt
         /// <remarks>
         /// The contents of this <see cref="JwtSecurityToken"/> have not been validated, the JSON Web Token is simply decoded. Validation can be accomplished using <see cref="JwtSecurityTokenHandler.ValidateToken(String, TokenValidationParameters, out SecurityToken)"/>
         /// </remarks>
+#if NET9_0_OR_GREATER
+        public JwtSecurityToken(string jwtEncodedString) : this(jwtEncodedString.AsMemory())
+        {
+        }
+#else
         public JwtSecurityToken(string jwtEncodedString)
         {
             if (string.IsNullOrWhiteSpace(jwtEncodedString))
@@ -36,6 +43,7 @@ namespace System.IdentityModel.Tokens.Jwt
             // Set the maximum number of segments to MaxJwtSegmentCount + 1. This controls the number of splits and allows detecting the number of segments is too large.
             // For example: "a.b.c.d.e.f.g.h" => [a], [b], [c], [d], [e], [f.g.h]. 6 segments.
             // If just MaxJwtSegmentCount was used, then [a], [b], [c], [d], [e.f.g.h] would be returned. 5 segments.
+
             string[] tokenParts = jwtEncodedString.Split(new char[] { '.' }, JwtConstants.MaxJwtSegmentCount + 1);
             if (tokenParts.Length == JwtConstants.JwsSegmentCount)
             {
@@ -52,6 +60,34 @@ namespace System.IdentityModel.Tokens.Jwt
 
             Decode(tokenParts, jwtEncodedString);
         }
+#endif
+
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Initializes a new instance of <see cref="JwtSecurityToken"/> from a string in JWS Compact serialized format.
+        /// </summary>
+        /// <param name="jwtEncodedString">A JSON Web Token that has been serialized in JWS Compact serialized format.</param>
+        /// <exception cref="ArgumentNullException">'jwtEncodedString' is null or contains only whitespace.</exception>
+        /// <exception cref="SecurityTokenMalformedException">'jwtEncodedString' contains only whitespace.</exception>
+        /// <exception cref="SecurityTokenMalformedException">'jwtEncodedString' is not in JWE format.</exception>
+        /// <exception cref="SecurityTokenMalformedException">'jwtEncodedString' is not in JWS or JWE format.</exception>
+        /// <remarks>
+        /// The contents of this <see cref="JwtSecurityToken"/> have not been validated, the JSON Web Token is simply decoded. Validation can be accomplished using <see cref="JwtSecurityTokenHandler.ValidateToken(String, TokenValidationParameters, out SecurityToken)"/>
+        /// </remarks>
+        public JwtSecurityToken(ReadOnlyMemory<char> jwtEncodedString)
+        {
+            if (jwtEncodedString.IsEmpty)
+                throw LogHelper.LogArgumentException<ArgumentException>(nameof(jwtEncodedString), $"{nameof(jwtEncodedString)} is empty.");
+
+            // Set the maximum number of segments to MaxJwtSegmentCount + 1. This controls the number of splits and allows detecting the number of segments is too large.
+            // For example: "a.b.c.d.e.f.g.h" => [a], [b], [c], [d], [e], [f.g.h]. 6 segments.
+            // If just MaxJwtSegmentCount was used, then [a], [b], [c], [d], [e.f.g.h] would be returned. 5 segments.
+
+            ReadOnlyMemory<char>[] memorySegments = JwtTokenUtils.SplitToken(jwtEncodedString);
+
+            Decode(memorySegments, jwtEncodedString.ToString());
+        }
+#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JwtSecurityToken"/> class where the <see cref="JwtHeader"/> contains the crypto algorithms applied to the encoded <see cref="JwtHeader"/> and <see cref="JwtPayload"/>. The jwtEncodedString is the result of those operations.
@@ -85,9 +121,13 @@ namespace System.IdentityModel.Tokens.Jwt
             Header = header;
             Payload = payload;
             RawData = string.Concat(rawHeader, ".", rawPayload, ".", rawSignature);
-
+#if NET9_0_OR_GREATER
+            RawHeaderMemory = rawHeader.AsMemory();
+            RawPayloadMemory = rawPayload.AsMemory();
+#else
             RawHeader = rawHeader;
             RawPayload = rawPayload;
+#endif
             RawSignature = rawSignature;
         }
 
@@ -137,7 +177,11 @@ namespace System.IdentityModel.Tokens.Jwt
             Header = header;
             InnerToken = innerToken;
             RawData = string.Join(".", rawHeader, rawEncryptedKey, rawInitializationVector, rawCiphertext, rawAuthenticationTag);
+#if NET9_0_OR_GREATER
+            RawHeaderMemory = rawHeader.AsMemory();
+#else
             RawHeader = rawHeader;
+#endif
             RawEncryptedKey = rawEncryptedKey;
             RawInitializationVector = rawInitializationVector;
             RawCiphertext = rawCiphertext;
@@ -351,15 +395,32 @@ namespace System.IdentityModel.Tokens.Jwt
         /// </summary>
         /// <remarks>The original JSON Compact serialized format passed to one of the two constructors <see cref="JwtSecurityToken(string)"/>
         /// or <see cref="JwtSecurityToken( JwtHeader, JwtPayload, string, string, string )"/></remarks>
+#if NET9_0_OR_GREATER
+        public string RawHeader
+        {
+            get => _payload != null ? RawHeaderMemory.Span.ToString() : string.Empty;
+        }
+
+        private ReadOnlyMemory<char> RawHeaderMemory { get; set; }
+#else
         public string RawHeader { get; internal set; }
+#endif
 
         /// <summary>
         /// Gets the original raw data of this instance when it was created.
         /// </summary>
         /// <remarks>The original JSON Compact serialized format passed to one of the two constructors <see cref="JwtSecurityToken(string)"/>
         /// or <see cref="JwtSecurityToken( JwtHeader, JwtPayload, string, string, string )"/></remarks>
-        public string RawPayload { get; internal set; }
+#if NET9_0_OR_GREATER
+        public string RawPayload
+        {
+            get => _payload != null ? RawPayloadMemory.Span.ToString() : string.Empty;
+        }
 
+        private ReadOnlyMemory<char> RawPayloadMemory { get; set; }
+#else
+        public string RawPayload { get; internal set; }
+#endif
         /// <summary>
         /// Gets the original raw data of this instance when it was created.
         /// </summary>
@@ -480,9 +541,13 @@ namespace System.IdentityModel.Tokens.Jwt
         /// <summary>
         /// Decodes the string into the header, payload and signature.
         /// </summary>
-        /// <param name="tokenParts">the tokenized string.</param>
+        /// <param name="tokenParts">the segements of the original token.</param>
         /// <param name="rawData">the original token.</param>
+#if NET9_0_OR_GREATER
+        internal void Decode(ReadOnlyMemory<char>[] tokenParts, string rawData)
+#else
         internal void Decode(string[] tokenParts, string rawData)
+#endif
         {
             try
             {
@@ -490,7 +555,7 @@ namespace System.IdentityModel.Tokens.Jwt
             }
             catch (Exception ex)
             {
-                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX12729, tokenParts[0]), ex));
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX12729, tokenParts[0].ToString()), ex));
             }
 
             if (tokenParts.Length == JwtConstants.JweSegmentCount)
@@ -498,19 +563,29 @@ namespace System.IdentityModel.Tokens.Jwt
             else
             {
                 DecodeJws(tokenParts[1]);
-                RawHeader = tokenParts[0];
+#if NET9_0_OR_GREATER
+                RawHeaderMemory = tokenParts[0];
+                RawPayloadMemory = tokenParts[1];
+#else
+                RawHeader = tokenParts[0];   
                 RawPayload = tokenParts[1];
-                RawSignature = tokenParts[2];
+#endif
+                RawSignature = tokenParts[2].ToString();
             }
 
             RawData = rawData;
         }
 
+
         /// <summary>
         /// Decodes the base64url encoded payload.
         /// </summary>
         /// <param name="payload">the encoded payload.</param>
+#if NET9_0_OR_GREATER
+        private void DecodeJws(ReadOnlyMemory<char> payload)
+#else
         private void DecodeJws(string payload)
+#endif
         {
             // Log if CTY is set, assume compact JWS
             if (Header.Cty != null && LogHelper.IsEnabled(EventLogLevel.Verbose))
@@ -518,15 +593,33 @@ namespace System.IdentityModel.Tokens.Jwt
 
             try
             {
+#if NET9_0_OR_GREATER
+                Payload = Base64UrlEncoding.Decode(payload.Span, 0, payload.Length, JwtPayload.CreatePayload);
+#else
                 Payload = Base64UrlEncoding.Decode(payload, 0, payload.Length, JwtPayload.CreatePayload);
+#endif
             }
             catch (Exception ex)
             {
-                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX12723, payload), ex));
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX12723, payload.ToString()), ex));
             }
-
         }
 
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Decodes the payload and signature from the JWE parts.
+        /// </summary>
+        /// <param name="tokenParts">Parts of the JWE including the header.</param>
+        /// <remarks>Assumes Header has already been set.</remarks>
+        private void DecodeJwe(ReadOnlyMemory<char>[] tokenParts)
+        {
+            RawHeaderMemory = tokenParts[0];
+            RawEncryptedKey = tokenParts[1].ToString();
+            RawInitializationVector = tokenParts[2].ToString();
+            RawCiphertext = tokenParts[3].ToString();
+            RawAuthenticationTag = tokenParts[4].ToString();
+        }
+#else
         /// <summary>
         /// Decodes the payload and signature from the JWE parts.
         /// </summary>
@@ -540,5 +633,6 @@ namespace System.IdentityModel.Tokens.Jwt
             RawCiphertext = tokenParts[3];
             RawAuthenticationTag = tokenParts[4];
         }
+#endif
     }
 }

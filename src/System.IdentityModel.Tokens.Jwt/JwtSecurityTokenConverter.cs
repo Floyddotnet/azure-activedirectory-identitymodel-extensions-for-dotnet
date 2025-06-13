@@ -21,6 +21,18 @@ namespace System.IdentityModel.Tokens.Jwt
             if (token == null)
                 throw new ArgumentNullException(nameof(token));
 
+#if NET9_0_OR_GREATER
+            if (token.InnerToken != null)
+            {
+                var jwtSecurityToken = new JwtSecurityToken(token.EncodedTokenMemory);
+                jwtSecurityToken.InnerToken = new JwtSecurityToken(token.InnerToken.EncodedTokenMemory);
+                return jwtSecurityToken;
+            }
+            else if (!token.EncodedTokenMemory.IsEmpty)
+            {
+                return new JwtSecurityToken(token.EncodedTokenMemory);
+            }
+#else
             if (token.InnerToken != null)
             {
                 var jwtSecurityToken = new JwtSecurityToken(token.EncodedToken);
@@ -31,6 +43,7 @@ namespace System.IdentityModel.Tokens.Jwt
             {
                 return new JwtSecurityToken(token.EncodedToken);
             }
+#endif
 
             throw new ArgumentException("token.EncodedToken must be set");
         }

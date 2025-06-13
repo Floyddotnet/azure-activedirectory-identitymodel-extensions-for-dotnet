@@ -122,7 +122,32 @@ namespace Microsoft.IdentityModel.Tokens
             _ = input ?? throw LogHelper.LogArgumentNullException(nameof(input));
             _ = action ?? throw new ArgumentNullException(nameof(action));
 
-            ReadOnlySpan<char> inputSpan = input.AsSpan();
+#if NET9_0_OR_GREATER
+            return Decode(input.AsSpan(), offset, length, action);
+#else
+            return Decode(input, offset, length, action);
+#endif
+        }
+
+#if NET9_0_OR_GREATER
+        /// <summary>
+        /// Decodes a base64url encoded substring of a string and then performs an action on the decoded bytes.
+        /// </summary>
+        /// <typeparam name="T">The return type of the operation.</typeparam>
+        /// <param name="inputSpan">The base64url encoded string to decode.</param>
+        /// <param name="offset">The index of the character in <paramref name="inputSpan"/> to start decoding from.</param>
+        /// <param name="length">The number of characters in <paramref name="inputSpan"/> to decode from <paramref name="offset"/>.</param>
+        /// <param name="action">The action to perform on the decoded bytes.</param>
+        /// <returns>An instance of {T}.</returns>
+        /// <remarks>
+        /// The buffer for the decode operation uses a shared memory pool to avoid allocations.
+        /// The length of the rented array of bytes may be larger than the decoded bytes; therefore, the action needs to know the actual length to use.
+        /// The result of <see cref="ValidateAndGetOutputSize(ReadOnlySpan{char}, int, int)"/> is passed to the action.
+        /// </remarks>
+        public static T Decode<T>(ReadOnlySpan<char> inputSpan, int offset, int length, Func<byte[], int, T> action)
+        {
+            _ = action ?? throw new ArgumentNullException(nameof(action));
+
             int outputSize = ValidateAndGetOutputSize(inputSpan, offset, length);
             byte[] output = ArrayPool<byte>.Shared.Rent(outputSize);
 
@@ -136,6 +161,7 @@ namespace Microsoft.IdentityModel.Tokens
                 ArrayPool<byte>.Shared.Return(output, true);
             }
         }
+#endif
 
         /// <summary>
         /// Decodes a base64url encoded substring of a string and then performs an action on the decoded bytes.
