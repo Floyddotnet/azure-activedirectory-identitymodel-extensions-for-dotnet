@@ -89,6 +89,18 @@ namespace Microsoft.IdentityModel.Tokens
             return false;
         }
 
+
+        /// <summary>
+        /// Indicates whether the current token string can be read as a token 
+        /// of the type handled by this instance.
+        /// </summary>
+        /// <param name="tokenString">The token string thats needs to be read.</param>
+        /// <returns>'True' if the ReadToken method can parse the token string.</returns>
+        public virtual bool CanReadToken(ReadOnlySpan<char> tokenString)
+        {
+            return false;
+        }
+
         /// <summary>
         /// Gets security token.
         /// </summary>
